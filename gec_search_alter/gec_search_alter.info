@@ -1,0 +1,6 @@
+name = GEC Apache Solr Search alter
+description = Adds Search filter according to terms in node
+package = Search Toolkit
+core = "7.x"
+
+dependencies[] = apachesolr

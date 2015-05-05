@@ -1,0 +1,166 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the user module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function dashboard_view_filter_schema() {
+  
+   // The table name here is plural, despite Drupal table naming standards,
+  // because "user" is a reserved word in many databases.
+  $schema['tag_categories'] = array(
+    'description' => 'Stores tag data.',
+    'fields' => array(
+      'tagcategoryid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique tag category ID.',
+        'default' => 0,
+      ),
+      'tagcategoryname' => array(
+        'type' => 'varchar',
+        'length' => 60,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Unique tag category name.',
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => 60,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Tag category description.',
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp for when tag category was created.',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => 'Whether the tag category is active(1) or blocked(0).',
+      ),
+    ),
+    'indexes' => array(
+      'created' => array('created')
+    ),
+    'unique keys' => array(
+      'tagcategoryname' => array('tagcategoryname'),
+    ),
+    'primary key' => array('tagcategoryid')
+  );
+
+ $schema['tags'] = array(
+    'description' => 'Stores tag data.',
+    'fields' => array(
+      'tagid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique tag ID.',
+        'default' => 0,
+      ),
+      'tagname' => array(
+        'type' => 'varchar',
+        'length' => 60,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Unique tag name.',
+      ),
+      'tagdescription' => array(
+        'type' => 'varchar',
+        'length' => 60,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Tag tag description.',
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp for when tag was created.',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => 'Whether the tag is active(1) or blocked(0).',
+      ),
+    ),
+    'indexes' => array(
+      'created' => array('created')
+    ),
+    'unique keys' => array(
+      'tagname' => array('tagname'),
+    ),
+    'primary key' => array('tagid')
+  );
+
+$schema['tagcategorytrans'] = array(
+    'description' => 'Stores tag data.',
+    'fields' => array(
+      'tagcattransid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique tag ID.',
+        'default' => 0,
+      ),
+      'tagid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique tag ID.',
+        'default' => 0,
+      ),
+      'tagcategoryid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique tag category ID.',
+        'default' => 0,
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => 'Whether the tag is active(1) or blocked(0).',
+      ),
+    ),
+    'primary key' => array('tagid', 'tagcategoryid'),
+    'indexes' => array(
+      'tagcategoryid' => array('tagcategoryid'),
+      'tagid' => array('tagid'),
+    ),
+    'foreign keys' => array(
+      'tag_categories' => array(
+        'table' => 'tag_categories',
+        'columns' => array('uid' => 'tagcategoryid'),
+      ),
+      'tags' => array(
+        'table' => 'tags',
+        'columns' => array('tagid' => 'tagid'),
+      ),
+    ),
+  );
+
+
+  return $schema;
+}
+
+
+
+/**
+ * @} End of "addtogroup updates-7.x-extra".
+ */

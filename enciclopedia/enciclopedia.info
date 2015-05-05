@@ -1,0 +1,4 @@
+name = Enciclopedia
+description = Enciclopedia Field Formatter, converts XML to HTML.
+package = Enciclopedia
+core = 7.x

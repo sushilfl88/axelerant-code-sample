@@ -1,0 +1,92 @@
+<?php
+/**
+ * @file
+ *  
+ */
+
+
+/**
+ * Implementation of hook_preprocess_search_results()
+ */
+function gec_search_alter_preprocess_search_results(&$variables) {
+  
+  /**
+   * This will override node results if a node view mode way selected on the apachesolr page    
+   * configuration page.
+   */
+  $solr_view_modes =  variable_get('apachesolr_search_view_modes', '');
+
+  
+  /**
+   * Check to see if the search results page we are on has a view mode selected .
+   */
+
+  if (isset($variables['search_page']['page_id']) AND isset($solr_view_modes[$variables['search_page']['page_id']])){
+   
+    $view_mode = $solr_view_modes[$variables['search_page']['page_id']];
+  
+    
+    /**
+     * Iterate through results and load the node view mode instead of the default search result
+     * snippet. 
+     */
+    if ($view_mode){
+      
+        //Reset Search Results, we are going to completely override
+      $variables['search_results'] = '';
+
+      foreach ($variables['results'] as $result) {
+         $classForImgThumb='imgdivbrwn';
+          $imageHtml='';
+        if ($result['entity_type'] == 'node'){      
+          $node = node_load($result['node']->entity_id);
+          if (is_object($node)){
+             $node_title=$result['title'];
+            $build = node_view($node, $view_mode);
+            $build['links']['#access'] = FALSE;
+
+            if(isset($build['field_sant'])){
+        $node_title=$node_title.' '.$build['field_sant']['#items'][0]['value'];
+        unset($build['field_sant']);
+      }
+
+      if(isset($build['field_desin'])){
+        $node_title=$node_title.' '.$build['field_desin']['#items'][0]['value'];
+        unset($build['field_desin']);
+      }
+     if(isset($build['field_work'])){
+        $classForImgThumb='imgdiv'.$build['field_work'][0]['#data'];
+       //unset($build['field_work']);
+      }
+      //replacing "&lt;?xml version=&quot;1.0&quot;?&gt;" with space
+      $replacingStrings=array('version=&quot;1.0&quot;?&gt;','&lt;?xml version=&quot;1.0&quot;?&gt;','&lt;?xml');
+      $result['snippets']['content']=str_replace($replacingStrings,"",$result['snippets']['content']);
+
+
+      //get the first occurence of foto
+      $texthtml = $build['body'][0]['#markup'];
+      preg_match('/<img.+src=[\'"](?P<src>.+?)[\'"].*>/i', $texthtml, $image);
+
+      if(isset($image[0]) && strpos($image[0],'graphic foto') || strpos($image[0],'graphic mapa') || strpos($image[0],'graphic dibuix'))
+      {
+        /*$imageHtml='<div>'.preg_replace(array('/graphic foto/', '/graphic mapa/', '/graphic dibuix/ '), $classForImgThumb,$image[0], 1).'</div>';*/
+        $imageHtml='<div><a href='.$result["fields"]["url"].'><img src='.$image["src"].' class='.$classForImgThumb.'></a></div>';
+      }
+
+      //customize the body tag to display apache solr snipped
+      $build['body']['#object']->title=$node_title;
+
+      $build['body']=array('#weight'=>'16','0'=>array('#markup'=>$imageHtml.'<div class="field field-name-body field-type-text-with-summary field-label-hidden"> <div class = "search-snippet"> <div class = "div1"> <p>... '.implode(' ', $result['snippets']['content']).' ...</p> </div><div class="clear"></div> </div> </div>'));
+       //dsm($build);
+            $variables['search_results'] .= render($build);
+         }
+        
+        }
+
+      }
+    
+    
+
+    }
+  }
+}

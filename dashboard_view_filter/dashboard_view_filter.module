@@ -1,0 +1,129 @@
+ <?php
+/*function dashboard_views_pre_execute(&$view) {
+
+    if($view->name == 'dashboard' || $view->name == 'dashboard1'){
+        $query = $view->build_info['query'];
+        $query->leftJoin('workbench_moderation_node_history', 'workbench_moderation_node_history', 'workbench_moderation_node_history.nid IN(select fdfcm.entity_id as enid from {field_data_field_client_matter} fdfcm where fdfcm.field_client_matter_nid=node.nid)');
+        // $or = db_or()
+        //         ->condition('workbench_moderation_node_history.current','0','<>');
+        // $query->condition($or);
+        if($_REQUEST['state']!="All" && isset($_REQUEST['state'])){
+          $query
+          ->condition('workbench_moderation_node_history.state',$_REQUEST['state'])
+          ->condition('workbench_moderation_node_history.current','0','<>');
+        }
+        $query
+        ->groupBy('node.nid')
+        ->addExpression('GROUP_CONCAT(distinct(workbench_moderation_node_history.state))', 'workbench_moderation_node_history_state');
+        $view->build_info['query'] = $query;
+      }
+}
+//This is the code for displaying states
+function dashboard_views_query_alter(&$view, &$query) {
+   if($view->name == 'dashboard' || $view->name == 'dashboard1'){
+    unset($query->table_queue['workbench_moderation_node_history']);
+        if($_REQUEST['state']!="All" && isset($_REQUEST['state'])){
+	   unset($query->where['1']['conditions']['3']);
+        }
+        unset($query->fields['workbench_moderation_node_history_state']);
+    }
+}*/
+
+/**
+ * Implements hook_menu().
+ */
+function dashboard_view_filter_menu() {
+ 
+  $items=array();
+
+   $items['admin/main'] = array(
+    'title' => 'Custom main menu',
+    'description' => 'Main menu item which should appear on the toolbar',
+    'position' => 'left',
+    'weight' => -100, // Less weight so that it will appear to the extreme left, before dashboard.
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/main/sub-menu-1'] = array(
+    'title' => 'Sub menu item 1',
+    'description' => 'Child of the menu appearing in toolbar.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_form'),
+    'access arguments' => array('custom permission'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/main/sub-menu-2'] = array(
+    'title' => 'Sub menu item 2',
+    'description' => 'Child of the menu appearing in toolbar.',
+    'page callback' => 'custom_page_callback',
+    'access arguments' => array('custom permission'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  // Administration pages.
+  $items['admin/enciclopedia-config'] = array(
+    'title' => 'Enciclopedia Config',
+    'description' => 'Main menu item which should appear on the toolbar',
+    'position' => 'left',
+    'weight' => -100, // Less weight so that it will appear to the extreme left, before dashboard.
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/enciclopedia-config/add-tab-category'] = array(
+    'title' => 'Add tag category',
+    'description' => 'Add tag category.',
+    'position' => 'left',
+    'weight' => -20,
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('dashboard_view_filter_form','add_tab_category'), //put the name of the form here
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/enciclopedia-config/add-tab'] = array(
+    'title' => 'Add tag',
+    'description' => 'Add tag.',
+    'position' => 'left',
+    'weight' => -20,
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('dashboard_view_filter_form','add_tab'), //put the name of the form here
+    'access callback' => TRUE,
+   'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+
+function dashboard_view_filter_form($node, &$form_state) {
+print_r($form_state);die('ss');
+ $form['tag_name'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'Category name',
+    '#maxlength' => 10,
+    '#required' => TRUE, //make this field required 
+  );
+
+$form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Click Here!'),
+  );
+  
+  return $form;
+}
+
+function dashboard_view_filter_form_validate($form, &$form_state) {
+  if (!($form_state['values']['price'] > 0)){
+    form_set_error('price', t('Price must be a positive number.'));
+  }
+}
+
+function dashboard_view_filter_form_submit($form, &$form_state) {
+}

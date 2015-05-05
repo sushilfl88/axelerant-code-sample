@@ -1,0 +1,4 @@
+name = Enciclopedia Field Formatters
+description = Enciclopedia Field Formatters
+core = 7.x
+package = enciclopedia

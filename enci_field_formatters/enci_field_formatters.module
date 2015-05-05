@@ -1,0 +1,565 @@
+<?php
+/**
+ * Implements hook_field_formatter_info().
+ */
+function enci_field_formatters_field_formatter_info() {
+  return array(
+    'alternative_names' => array(
+      'label' => t('Alternative Names'),
+      'field types' => array('text_long'),
+    ),
+    'icc_map' => array(
+      'label' => t('ICC Maps'),
+      'field types' => array('text'),
+    ),
+    'external_links' => array(
+      'label' => t('External Links'),
+      'field types'  =>  array('text_with_summary', 'text_long'),
+    ),
+    'Work' => array(
+      'label' => t('Work'),
+      'field types'  =>  array('taxonomy_term_reference'),
+    ),
+    'col_laboracio_new' => array(
+      'label' => t('Col·laboració'),
+      'field types' => array('text_long'),
+    ),
+  );
+}
+/**
+ * Implements hook_field_formatter_view().
+ */
+function enci_field_formatters_field_formatter_view($entity_type, $entity, $field, $instance, $langcode,$items, $display) {
+  $element = array();
+  $settings = $display['settings'];
+    switch ($display['type']) {
+  case 'Work':
+      foreach ($items as $delta => $item) {
+        $term=taxonomy_term_load($item['tid']);
+
+        if($term->name=='gec')
+        {
+          $output='<div class="sr-source">Font: Gran Enciclopèdia Catalana</div>';    
+        }
+        else
+        {
+          $btlClass='btn'.$term->name;
+          $output='<span class='.$btlClass.'>'.$term->description.'</span>';  
+        }
+        
+        $element[$delta] = array(
+          '#data' => $term->name,
+          '#markup' => $output,
+        );
+      }
+      break;
+   case 'col_laboracio_new':
+      foreach ($items as $delta => $item) {
+        $output_arr = '';
+
+        $xml_string = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $item['value']);
+       // if(!is_string($xml_string))
+        //{
+
+
+        if (!empty($xml_string)) {
+          $xml = new SimpleXMLElement($xml_string);
+          $result = $xml->xpath('/author/name[@type="username"]');
+        }
+        foreach ($result as $key => $value) {
+          $output_arr[] = $value;
+        }
+        if (!empty($output_arr)) {
+          $output = implode(' / ', $output_arr);
+        }
+        $element[$delta] = array(
+          '#data' => $item['value'],
+          '#markup' => $output,
+        );
+        
+      //}
+      }
+      break;
+
+    case 'icc_map':
+       foreach ($items as $delta => $item) {
+        // fetch
+        $icc_utmx = field_get_items('node', $entity, 'field_icc_utmx');
+        $icc_utmy = field_get_items('node', $entity, 'field_icc_utmy');
+        $icc_utm_val['x_val'] = str_pad($icc_utmx[$delta]['safe_value'],  6, '0');
+        $icc_utm_val['y_val'] = str_pad($icc_utmy[$delta]['safe_value'], 7, '0');
+        $element[$delta] = array(
+          '#theme' => 'icc_map',
+          '#lon' =>$icc_utm_val['x_val'],
+          '#lat' => $icc_utm_val['y_val']
+        );
+      }
+      break;
+    case 'body':
+      break;
+    case 'alternative_names':
+      $paterns=array(
+        'title'=>'/tempParent/title[@type="alt"]'
+      );
+      /*$paterns=array(
+        'title'=>'/tempParent/title[@type="alt"]',
+        'tooltip'=>'/tempParent/title/note[@type="def"]',
+        'lang'=>'/tempParent/title/@xml:lang'
+      );*/
+      foreach ($items as $delta => $item) {
+          $item_value = '<tempParent>' . $item['value'] . '</tempParent>';
+        $output_arr = '';
+
+        /*$item['value']='<title xmlns="http://www.tei-c.org/ns/1.0" n="3" type="alt">RDA
+        <note xmlns="http://www.tei-c.org/ns/1.0" anchored="true" n="1" type="desc">sigla</note>
+        <note xmlns="http://www.tei-c.org/ns/1.0" anchored="true" type="def">Sigla de la</note>
+        </title>';*/
+
+
+        $xml_string = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $item_value);
+        $xml_string = preg_replace('/<hi rend="sub">(.+?)<\/hi>/is', '&lt;sub&gt;$1&lt;/sub&gt;', $xml_string);
+        $xml = new SimpleXMLElement($xml_string);
+        if(isset($paterns)) {
+          foreach($paterns as $patternKey=>$patternValue) {
+            $result = $xml->xpath($patternValue);
+            $count=0;
+            foreach ($result as $key => $value) {
+              $output_arr[$patternKey][$key] = $value;
+              $xml_lang = $value->attributes('xml', TRUE)->__toString();
+              if (!empty($xml_lang)) {
+                $output_arr[$patternKey][$key]->addAttribute('lang', $xml_lang);
+              }
+              $note = $xml->title[$key]->note;
+              foreach ($note as $nkey => $nvalue) {
+                if ($nvalue->attributes()->type->__toString() == 'def') {
+                  $output_arr[$patternKey][$key]->addAttribute('tooltip', $nvalue->__toString());
+                }
+                if ($nvalue->attributes()->type->__toString() == 'desc') {
+                  $output_arr[$patternKey][$key]->addAttribute('desc', $nvalue->__toString());
+                }
+              }
+              /*$hi = $xml->title[$key]->hi;
+              foreach ($hi as $hkey => $hvalue) {
+                if ($hvalue->attributes()->rend->__toString() == 'sub') {
+                  $output_arr[$patternKey][$key]->addAttribute('sub', $hvalue->__toString());
+                }
+              }*/
+            }
+          }
+        }
+        $output='<div>';
+        if(isset($output_arr['title'])) {
+          $alt_count = count($output_arr['title']);
+          foreach($output_arr['title'] as $outputKey=>$outputValue) {
+            $comma = '';
+            $alt_count--;
+            if ($alt_count != 0) {
+              $comma = ', ';
+            }
+            $alternative_names = '<span class="no-qtip-link">!tooltip-title</span>!lang!comma';
+            $lang = '';
+            if ($outputValue->attributes()->lang != NULL) {
+              $lang = $outputValue->attributes()->lang->__toString();
+            }
+            $tooltip = '';
+            if ($outputValue->attributes()->tooltip != NULL) {
+              $tooltip = $outputValue->attributes()->tooltip->__toString();
+              $alternative_names = '<span class="qtip-link"><span class="qtip-tooltip">!tooltip-content</span>!tooltip-title</span>!lang!comma';
+            }
+            $title = trim($outputValue);
+            if (empty($lang) || $lang == 'ca') {
+              $lang = '';
+              $title = $title;
+            } else {
+              $lang = '<span class="lang"> (' . $lang. ')</span>';
+              $title = '<i>' .  $title . '</i>';
+            }
+            if ($outputValue->attributes()->desc != NULL && $outputValue->attributes()->desc->__toString() == 'nomc') {
+               $title = '<i>' .  $title . '</i>';
+            }
+            /*if ($outputValue->attributes()->sub != NULL) {
+               $title = $title . '<sub>' . $outputValue->attributes()->sub . '</sub>';
+            }*/
+            $title = preg_replace('/[\t\n\r]+/', '', $title);
+            $args = array(
+              '!tooltip-content' => $tooltip,
+              '!tooltip-title' => $title,
+              '!lang' => $lang,
+              '!comma' => $comma,
+            );
+            $output .= t($alternative_names, $args);
+          }
+        }
+
+        $output=$output.'</div>';
+
+        $element[$delta] = array(
+          '#data' => $item['value'],
+          '#markup' => $output,
+          // '#' => $settings[''],
+        );
+      }
+      break;
+    case 'external_links':
+      $element = _enci_field_formatters_extern($items);
+      # code...
+      break;
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function enci_field_formatters_theme($existing, $type, $theme, $path) {
+  return array(
+    'icc_map' => array(
+      'template' => 'icc-map',
+      'path' => drupal_get_path('module', 'enci_field_formatters') . '/templates',
+      'variables' => array('lat' => NULL, 'lon' => NULL),
+    ),
+  );
+}
+
+
+
+/**
+ * Implements hook_block_info().
+ */
+function enci_field_formatters_block_info() {
+
+  $blocks['icc_map'] = array(
+    'info' => t('ICC Maps'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  $blocks['toc'] = array(
+    'info' => t('Taula de continguts'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function enci_field_formatters_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'icc_map':
+      $block['subject'] = t('Mapa');
+        $nid = arg(1);
+        $node = node_load($nid);
+      if ($node->type == 'toponymy') {
+        // fetch
+        $icc_utmx = field_get_items('node', $node, 'field_icc_utmx');
+        $icc_utmy = field_get_items('node', $node, 'field_icc_utmy');
+        if (!empty($icc_utmx) && !empty($icc_utmy)) {
+          $icc_utm_val['x_val'] = str_pad($icc_utmx[0]['safe_value'],  6, '0');
+          $icc_utm_val['y_val'] = str_pad($icc_utmy[0]['safe_value'], 7, '0');
+          $content = array(
+            '#theme' => 'icc_map',
+            '#lon' =>$icc_utm_val['x_val'],
+            '#lat' => $icc_utm_val['y_val'],
+          );
+          $block['content'] = $content;
+        }
+        else {
+          $block['content'] = NULL;
+        }
+      }
+      break;
+
+      case 'toc':
+        $block['subject'] = t('Taula de continguts');
+        $nid = arg(1);
+        $node = node_load($nid);
+        if ($node) {
+          $body = field_get_items('node', $node, 'body');
+          $body_content  = preg_replace('(xml:id)', 'id', $body[0]['value']);
+          //print_r($body_content);
+          $xml = new SimpleXMLElement('<xml>'.$body_content.'</xml>');
+          $items = array();
+          $count = 0;
+          foreach ($xml->def->div1->div2 as  $div2_section) {
+            if ($div2_section->attributes()->id != NULL && $div2_section->head[0] != NULL) {
+              $id_div2 = $div2_section->attributes()->id->__toString();
+              $title_div2 = strip_tags($div2_section->head[0]->saveXML());
+              $items[$count] = array(
+                'data' => '<a href="#' . $id_div2 . '">' . $title_div2 . '</a>',
+                'class' => array('nested')
+              );
+              $inner_count = 0;
+              foreach ($div2_section->div3 as  $div3_section) {
+                if ($div3_section->attributes()->id != NULL && $div3_section->head[0] != NULL) {
+                  $id_div3 = $div3_section->attributes()->id->__toString();
+                  $title_div3 = strip_tags($div3_section->head[0]->saveXML());
+                  $items[$count]['children'][] = array(
+                    'data' => '<a href="#' . $id_div3 . '">' . $title_div3 . '</a>',
+                    'class' => array('nested')
+                  );
+                  foreach ($div3_section->div4 as $div4_section) {
+                    if ($div4_section->attributes()->id != NULL && $div4_section->head[0] != NULL) {
+                      $id_div4 = $div4_section->attributes()->id->__toString();
+                      $title_div4 = strip_tags($div4_section->head[0]->saveXML());
+                      $items[$count]['children'][$inner_count]['children'][] = array(
+                        'data' => '<a href="#' . $id_div4 . '">' . $title_div4 . '</a>',
+                        'class' => array('nested')
+                      );
+                    }
+                  }
+                  $inner_count++;
+                }
+              }
+              if ($inner_count > 0) {
+                $items[$count]['data'] = '<a href="#' . $id_div2 . '">' . $title_div2 . '</a><a class="toggle-checks" href="#"><span></span></a>';
+              }
+              $count++;
+            }
+          }
+          if (count($items) > 0) {
+            $js = "jQuery('.toggle-checks').live('click', function(e){
+                e.preventDefault();
+                jQuery(this).parent('.nested').toggleClass('nested-showing');
+              });";
+            drupal_add_js($js, 'inline');
+            $type = 'ul';
+            $attributes = array(
+              'class' => 'toc',
+            );
+            $variables = array('items' => $items, 'title' => '', 'type' => $type, 'attributes' => $attributes);
+            $block['content'] = theme('item_list', $variables);
+          }
+          else
+            $block['content'] = '';
+        }
+        else
+          $block['content'] = '';
+        break;
+
+  }
+  return $block;
+}
+
+/**
+ * Helper function for external links XML formatting.
+ */
+function _enci_field_formatters_extern($items) {
+  foreach ($items as $delta  =>  $item) {
+    $xml  =  $item['value'];
+    $avoidExt = array('pdf','net','cat','com','in','us','org');
+    $attributes  =  array('org', 'xml:id', 'sample' );
+    global $base_path;
+
+    $searhTags  =  array(
+      'ref' => array('searchAttr' => 'target',
+            'changeAttrTo' => 'href',
+            'removeAttr' => array('n', 'target'),
+            'searchForString' => 'urn:ecid:',
+            'replaceStringWith' => $base_path),
+      'div' => array()
+    );
+
+    $specialCasesRegex = array();
+    $field_xml  =  new DOMDocument();
+    $field_xml->formatOutput  =  TRUE;
+
+    if (!empty($xml)) {
+      $xml = '<div>' . $xml . '</div>';
+    }
+    else {
+      return FALSE;
+    }
+
+    $field_xml->loadXML($xml);
+
+    //search tags in xml
+    $dynamicRegex = array();
+
+    if (!empty($searhTags)) {
+      foreach ($searhTags as $keys => $value) {
+        $getAttributeValue = '';
+        $type = '';
+        $tags_items  =  $field_xml->getElementsByTagName($keys);
+        $specialTags = array_keys($specialCasesRegex);
+        foreach ($tags_items as $key  =>  $tags) {
+          if ($tags->tagName == 'title') {
+            foreach ( $tags->childNodes as $child) {
+              if ($child->nodeType  ==  XML_ELEMENT_NODE){
+                  $getAttributeValue = $child->getAttribute('type');
+                   if ($getAttributeValue == 'desc') {
+                     $tags->removeChild($child);
+                   }
+              }
+            }
+          }
+
+          if (in_array($keys, $specialTags)) {
+            $spcial_tags_items = $field_xml->getElementsByTagName($specialCasesRegex[$keys]['checkInTag']);
+
+            if (is_array($specialCasesRegex[$keys]['checkInAttr']) && count($spcial_tags_items) > 0) {
+              foreach ($specialCasesRegex[$keys]['checkInAttr'] as $keyAttr => $keyAttrValue) {
+                foreach ($spcial_tags_items as $link) {
+                  $getSelectedAttributes = $link->getAttribute($keyAttr);
+                  $type = $getSelectedAttributes;
+                }
+              }
+            }
+          }
+
+          $checkInParentNode='';
+          if (isset($value['checkInParentNode'])) {
+            $checkInParentNode=$value['checkInParentNode'];
+            $parentNode = $tags->parentNode->tagName;
+          }
+
+          if (isset($value['searchAttr'])) {
+            $getAttributeValue = $tags->getAttribute($value['searchAttr']);
+
+            if (isset($value['searchForString']) && isset($value['replaceStringWith'])) {
+              $getAttributeValue = str_replace($value['searchForString'],$value['replaceStringWith'],$getAttributeValue);
+            }
+
+            if (isset($value['concateStringWith'])){
+              $ext  =  pathinfo($getAttributeValue, PATHINFO_EXTENSION);
+              $concateStr = $value['concateStringWith'];
+
+              if (!in_array($ext,$avoidExt)) {
+                if (is_array($concateStr)) {
+                  foreach ($concateStr as $position => $concateValue) {
+                    if ($position == "after") {
+                      $getAttributeValue = $getAttributeValue.$concateValue;
+                    }
+                    else {
+                      $getAttributeValue = $concateValue.$getAttributeValue;
+                    }
+                  }
+                }
+                else {
+                  $getAttributeValue = $getAttributeValue.$concateValue;
+                }
+              }
+              $getAttributeValue = str_replace($value['searchForString'],$value['replaceStringWith'],$getAttributeValue);
+            }
+
+            if (isset($value['changeAttrTo'])) {
+              if (is_array($value['changeAttrTo'])) {
+                foreach ($value['changeAttrTo'] as $key => $attribute) {
+                  $tags->setAttribute($attribute, $tags->getAttribute($value['searchAttr'][$key]));
+                }
+              } else {
+                $tags->setAttribute($value['changeAttrTo'],$getAttributeValue);
+              }
+            }
+          }
+
+          if ($tags->tagName == 'graphic') {
+            foreach ($tags->attributes as $attr) {
+              $type = $tags->parentNode->getAttribute('type');
+              //if ($tags->hasAttribute('n')) {
+                $tags->setAttribute('n', $type);
+              //}
+            }
+          }
+
+          if (isset($value['setNewAttr'])) {
+            if (isset($type) && !empty($type)) {
+              if (isset($value['setNewAttr'][$type]))
+                $newAttr = $value['setNewAttr'][$type];
+              else
+                $newAttr = $value['setNewAttr'];
+            }
+            else
+              $newAttr = $value['setNewAttr'];
+
+            foreach ($newAttr as $attrType => $attrValue) {
+              $chkParentsStatus=false;
+               //will remove-start
+              if (isset($newAttr['relationWith']) && $newAttr['relationWith']=="checkInParentNode") {
+                if (in_array($parentNode, $checkInParentNode))
+                  $chkParentsStatus=true;
+              }
+              //will remove-end
+              if ($attrType!='relationWith') {
+                if ($attrType == 'type') {
+                  $extension = substr(strrchr($getAttributeValue, '.'), 1);
+                  if ($extension !=  'ogv')
+                    $attrValue = str_replace('srcExtension',$extension, $attrValue);
+                  else {
+                    unset($attrType);
+                    unset($attrValue);
+                  }
+                }
+                elseif ($attrType == 'href' || $attrType == 'poster') {
+                  $extension = $getAttributeValue;
+                  $attrValue = str_replace('searchSrc',$extension, $attrValue);
+                }
+
+                if (!is_array($attrValue)) {
+                  if (isset($newAttr['relationWith'])  && $chkParentsStatus == true) {
+                    $tags->setAttribute($attrType,$parentNode);
+                  }
+                  else if (!isset($newAttr['relationWith'])  && $chkParentsStatus == false)
+                    $tags->setAttribute($attrType,$attrValue);
+                }
+              }
+            }
+          }
+
+          if (isset($value['removeAttr'])) {
+            foreach ($value['removeAttr'] as $attribute) {
+              $tags->removeAttribute($attribute);
+            }
+          }
+          if (in_array($keys, $specialTags)) {
+            $spcial_tags_items = $field_xml->getElementsByTagName($specialCasesRegex[$keys]['checkInTag']);
+            if (is_array($specialCasesRegex[$keys]['checkInAttr']) && count($spcial_tags_items) > 0) {
+              foreach ($specialCasesRegex[$keys]['checkInAttr'] as $keyAttr => $keyAttrValue) {
+                foreach ($spcial_tags_items as $link){
+                  $getSelectedAttributes = $link->getAttribute($keyAttr);
+                  if (isset($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes]) && is_array($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes])) {
+                    foreach ($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes] as $keySelectAttr => $valueSelectAttr){
+                      $dynamicRegex[$keySelectAttr] = $valueSelectAttr;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    $xml = $field_xml->saveXML();
+    $xml = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $xml);
+    $xml = str_replace('  ',' ', $xml);
+
+    $replaceTags = $patterns  =  array(
+    '/<note (.+?)>(.+?)<\/note>/is' => '<span class = "tooltio" style = "display:none;">$2</span>',
+    '/<xr (.+?) type="external">(.+?)<\/xr>/is' => '<div class="external-links">$2</div>',
+    '/<xr type="external" (.+?)>(.+?)<\/xr>/is' => '<div class="external-links">$2</div>',
+     '/<xr (.+?)><ref (.+?)>(.+?)<hi (.+?)>(.+?)<\/hi><\/ref>(.+?)<\/xr>/is' => '<div class="related_articles"><a $2>$3</a></div><i>$5</i>',
+     // '/<xr type="ecGRW" (.+?)><ref (.+?)>(.+?)<hi (.+?)>(.+?)<\/hi><\/ref>(.+?)<\/xr>/is' => '<div class="related_articles"><a $2>$3</a></div><i>$5</i>',
+    '/<ref (.+?)>(.+?)<\/ref>/is' => '<a $1>$2</a>',
+    );
+    $replaceTags = array_merge($replaceTags,$dynamicRegex);
+
+
+    //----------TODO:need to remove this code -------///
+    $xml  =  getTextBetweenTags($xml,$replaceTags);
+    $xml = preg_replace_callback('/(<cell|<row|<\/cell|<\/row|<item|<\/item|<list|<\/list)/is','tmpConvert', $xml);
+    $searchAttributeFromXml = array('target = ','mimetype = ');
+    $replaceAttributeFromXml = array('oldtarget = ','oldmimetype = ');
+    $xml  =  str_replace($searchAttributeFromXml, $replaceAttributeFromXml, $xml);
+    $output  =  $xml;
+      $element[$delta]  =  array(
+        '#markup'  =>  $output,
+      );
+    }
+
+    //variable_set('searchTitle','Gran Enciclopèdia Catalana');
+
+    return $element;
+  }
+

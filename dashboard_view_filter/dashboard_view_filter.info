@@ -1,0 +1,6 @@
+name = Expose filter on dashboard
+description = Expose custom view filter of State on dashboard
+core = "7.x"
+package = Enciclopedia
+files[] = dashboard_view_filter.module
+configure = admin/config/enciclopediaconfig

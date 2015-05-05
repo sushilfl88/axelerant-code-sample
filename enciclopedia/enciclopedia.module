@@ -1,0 +1,923 @@
+  <?php
+/**
+ * @file
+ * Module file for Enciclopedia Feeds tamper.
+ */
+
+/**
+* Implements hook_field_formatter_info().
+*/
+function enciclopedia_field_formatter_info() {
+  $info  =  array(
+    'xml'  =>  array(
+      'label'  =>  t('Enciclopedia Field Formatter'),
+      'field types'  =>  array('text_with_summary', 'text_long','text'),
+      'description'  =>  t('Displays XML as HTML.'),
+    ),
+  );
+  return $info;
+}
+
+/**
+* Implements hook_field_formatter_view().
+*/
+function enciclopedia_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  //jcarousel_add('mycarousel', array('vertical' => TRUE));
+
+
+
+global $sites;
+$element  =  array();
+$site_name = variable_get('site_name');
+//print_r($sites);die('ddd');
+
+
+foreach ($items as $delta  =>  $item) {
+  $xml  =  $item['value'];
+
+  $avoidExt = array('pdf','net','cat','com','in','us','org','xml');
+  $attributes  =  array('org', 'xml:id', 'sample' );
+  global $base_path;
+  $searhTags  =  array(
+    'p' => array(
+      'removeAttr' => array('xmlns', 'n'),
+    ),
+    'def' => array(
+      'removeAttr' => array('opt', 'n'),
+    ),
+    'figure' => array(
+      'searchAttr' => 'xml:id',
+      'changeAttrTo' => 'id',
+      'removeAttr' => array('xml:id', 'n'),
+    ),
+    'cell' => array(
+      'searchAttr' => array('cols', 'rows'),
+      'changeAttrTo' => array('colspan', 'rowspan'),
+      'removeAttr' => array('cols', 'rows'),
+    ),
+    'div2' => array(
+      'searchAttr' => 'xml:id',
+      'changeAttrTo' => 'id',
+      'removeAttr' => array('type', 'n', 'topic', 'xml:id'),
+    ),
+    'div3' => array(
+      'searchAttr' => 'xml:id',
+      'changeAttrTo' => 'id',
+       'removeAttr' => array('type', 'n', 'topic', 'xml:id'),
+    ),
+    'div4' => array(
+      'searchAttr' => 'xml:id',
+      'changeAttrTo' => 'id',
+       'removeAttr' => array('type', 'n', 'topic', 'xml:id'),
+    ),
+    'head' => array(
+      'setNewAttr' => array('class' => 'head','relationWith'=>'checkInParentNode'),
+      'checkInParentNode' => array('table', 'div2', 'div3', 'div4'),
+      'removeAttr' => array('n', 'type'),
+    ),
+      'bibl' => array(
+        'setNewAttr' => array('class' => 'bibl','relationWith'=>'checkInParentNode'),
+        'checkInParentNode' => array('listBibl'),
+        'removeAttr' => array('n'),
+      ),
+    'title' => array(
+      'setNewAttr' => array('class' => 'bibl','relationWith'=>'checkInParentNode'),
+      'checkInParentNode' => array('bibl')
+    ),
+    'list' => array(
+      'searchAttr' => 'type',
+      'changeAttrTo' => 'class',
+      'removeAttr' => array('type'),
+    ),
+    /*'xr' => array(
+      'removeAttr' => array('type', 'n', 'opt'),
+    ),*/
+    'hi' => array(
+      'removeAttr' => array('n'),
+    ),
+    'graphic' => array(
+      'searchAttr' => 'url',
+      'changeAttrTo' => array(
+      'all' => array('src'),
+      'dibuix carousel' => array('dibCarSrc'),
+      'foto carousel' => array('fotoCarSrc'),
+      'video carousel'=> array('vidCarSrc'),
+      'table-thumbnail carousel' => array('tablethumbCarSrc'),
+      'table' => array('tableSrc'),
+      'dibuix' => array('dibuixSrc'),
+      'mapa' => array('mapaSrc'),
+      'mapa carousel' => array('mapaCarSrc'),
+      'foto' => array('fotoSrc'),
+      'table-thumbnail' => array('tableThumbSrc'),
+      'video' => array('videoSrc'),
+      
+    ),
+      'searchForString' => 'urn:ecid:',
+      'replaceStringWith' => $base_path . 'sites/default/files/media/',//enciclopedia_demo
+      'setNewAttr' => array(
+        'formula' => array(
+          'href' => 'searchSrc'
+        ),
+      'video' =>  array(
+        'poster' => 'searchSrc'
+      ),
+      'audio' =>  array(
+        'href' => 'searchSrc'
+      ),
+      'media' => array(
+        'href' => 'searchSrc'
+      ),
+      'escut' => array(
+        'href' => 'searchSrc'
+      ),
+      'graficPop' => array(
+        'href' => 'searchSrc'
+      ),
+      'bandera' => array(
+        'href' => 'searchSrc'
+      ),
+      
+    ),
+      'removeAttr' => array('url','mimeType')
+      //$tags->removeAttribute($attribute);
+  ),
+  'equiv' => array('searchAttr' => 'uri',
+        'changeAttrTo' => 'src',
+        'searchForString' => 'urn:ecid:',
+        'replaceStringWith' => $base_path . 'sites/default/files/media/',///enciclopedia_demo
+        'setNewAttr' => array('type' => 'video/srcExtension'),
+        'removeAttr' => array('uri','mimetype')
+  ),
+  'ref' => array('searchAttr' => 'target',
+        'changeAttrTo' => 'href',
+        'removeAttr' => array('n', 'target'),
+        'searchForString' => 'urn:ecid:',
+        'concateStringWith' => array('after' => '.xml'),
+        'replaceStringWith' => $base_path),
+  'div' => array(),'ptr'=>array(),'usg'=>array(),'orth'=>array(), 're'=>array());
+
+  $specialCasesRegex = array(
+    'graphic' => array(
+      'checkInTag' => 'figure',
+      'checkInAttr' => array(
+        'type' => array(
+          'media' => array(
+            '/<graphic n="media" (.+?)\/>/is' => '<img $1 class = "graphic media"/>',
+            '/<graphic (.+?) n="media" (.+?)\/>/is' => '<img $1 class = "graphic media"/>',
+          ),
+          'bandera' => array(
+
+            '/<graphic (.+?) n="bandera"\/>/is' => '<img $1 class = "graphic bandera"/>',
+            '/<graphic n="bandera" (.+?)\/>/is' => '<img $1 class = "graphic bandera"/>',
+            
+          ),
+          
+          
+          'escut' => array(
+            '/<graphic (.+?) n="escut" (.+?)\/>/is' => '<img $1 $2 class = "graphic escut"/>',
+            '/<graphic n="escut" (.+?)\/>/is' => '<img $1 class = "graphic escut"/>',
+          ),
+
+          'graficPop' => array(
+            '/<graphic (.+?) n="graficPop" (.+?)\/>/is' => '<a $1><img $1 $2 class = "graphic graficPop"/></a>',
+            '/<graphic n="graficPop" (.+?)\/>/is' => '<a $1><img $1 $2 class = "graphic graficPop"/></a>'
+          ),
+          'formula' => array(
+            '/<graphic (.+?) n="formula" (.+?)\/>/is' => '<img $1 class = "graphic formula"/>',
+            '/<graphic n="formula" (.+?)\/>/is' => '<a $1><img $1 $2 class = "graphic formula"/></a>'
+          ),
+          
+          'audio' => array(
+            '/<graphic (.+?)>(.+?)<\/graphic>/is' => '<audio controls = "controls">$2</audio>','/<equiv (.+?)\/>/is' => '<source $1 >'
+          ),
+          
+         'dibuix' => array(
+            '/<graphic n="dibuix" dibuixSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic dibuix"\/>'
+          ),
+        'foto' => array(
+           '/<graphic n="foto" fotoSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic foto"/>',
+          /* '/<graphic (.+?) n="foto carousel"\/>/is' => '<img $1 class = "graphic carousel foto"/>',*/
+           
+          ),
+        'foto carousel' => array(
+           //'/<graphic url="(.+?)" src="(.+?)" n="foto carousel"\/>/is' => '<img class = "graphic carousel foto" src="$2"/>',
+          '/<graphic n="foto carousel" fotoCarSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic carousel foto"/>',   
+          ),
+        'dibuix carousel' => array(
+          ///< *img[^>]*src *= *["\']?([^"\']*)/i
+           '/<graphic n="dibuix carousel" dibCarSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic carousel dibuix"/>',
+           
+          ),
+        'mapa' => array(
+           '/<graphic n="mapa" mapaSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic mapa"/>',
+          ),
+        'mapa carousel' => array(
+           '/<graphic n="mapa carousel" mapaCarSrc="(.+?)"\/>/is' => '<img src="$1" class = "graphic carousel mapa"/>',
+          ),
+          'table-thumbnail' => array(
+            '/<graphic n="table-thumbnail" tableThumbSrc="(.+?)">(.+?)<\/graphic>/is' => '<img src="$1" class = "graphic table-thumbnail" id="table-thumbnail"/>$2',
+            '/<equiv mimeType="(.+?)" (.+?)/>/is' => '<source $2 class="table-thumbnail link"/>'
+          ),
+          'table-thumbnail carousel' => array(
+            '/<graphic n="table-thumbnail carousel" tablethumbCarSrc="(.+?)">(.+?)<\/graphic>/is' => '<img src="$1" class = "graphic carousel table-thumbnail" id="table-thumbnail"/>$2',
+            '/<equiv mimeType="(.+?)" (.+?)\/>/is' => '<source $2 class="table-thumbnail link carousel"/>',
+          ),
+          
+          'table' => array(
+            '/<graphic n="table" tableSrc="(.+?)"\/>/is' => '<span><link src="$1" /></span>'
+          ),
+
+          'video' => array(
+            '/<graphic n="video" videoSrc="(.+?)">(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video poster="$1" controls = "controls">$2</video></span></div><a><img src="$1" class = "graphic"/></a>',
+            '/<equiv (.+?)\/>/is' => '<source $1/>',
+            
+           /* '/<graphic n="video" (.+?) src="(.+?)" (.+?)>(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video poster="$2" controls = "controls">$4</video></span></div><a><img src="$2" class = "graphic"/></a>',
+            '/<graphic (.+?) n="video" src="(.+?)" (.+?)>(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video controls = "controls">$4</video></span></div><a><img src="$2" class = "graphic"/></a>',
+            '/<graphic (.+?) src="(.+?)" n="video" (.+?)>(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video controls = "controls">$4</video></span></div><a><img src="$2" class = "graphic"/></a>',
+            '/<graphic (.+?) src="(.+?)" n="video">(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video controls = "controls">$3</video></span></div><a><img src="$2" class = "graphic"/></a>',
+            '/<graphic n="video" src="(.+?)" (.+?)>(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video controls = "controls">$3</video></span></div><a><img src="$1" class = "graphic"/></a>',
+            '/<equiv (.+?)\/>/is' => '<source $1 >'*/
+          ),
+'video carousel' => array(
+            '/<graphic n="video carousel" vidCarSrc="(.+?)">(.+?)<\/graphic>/is' => '<div style = "display:none"><span class = "ViedoPlay"><video poster="$1" controls = "controls">$2</video></span></div><a><img src="$1" class = "graphic"/></a>',
+            '/<equiv (.+?)\/>/is' => '<source $1 >'
+          ),
+
+
+        ),
+      ),
+    ),
+    'ptr' => array(
+          'checkInTag' => 'ptr',
+          'checkInAttr' => array(
+            'type' => array(
+              'DIEC_2nd_ed' => array(
+                '/<ptr (.+?)\/>/is' => '<span $1 class="ptr" title="">■</span>',
+              )
+            ),
+          ),
+        ),
+    'usg' => array(
+          'checkInTag' => 'usg',
+          'checkInAttr' => array(
+            'type' => array(
+              'dom' => array(
+                '/<usg type="dom">(.+?)<\/usg>/is' => '<span class="dom">$1</span>'
+                ),
+              'register' => array(
+                '/<usg type="register">(.+?)<\/usg>/is' => '<span class="register">$1</span>'
+                ),
+              'dialectical' => array(
+                '/<usg type="dialectical">(.+?)<\/usg>/is' => '<span class="dialectical">$1</span>'
+                ),
+              'geo' => array(
+                '/<usg type="geo">(.+?)<\/usg>/is' => '<span class="geo">$1</span>'
+                ),
+               'hint' => array(
+                '/<usg type="hint">(.+?)<\/usg>/is' => '<span class="hint">$1</span>'
+                ),
+            ),
+          ),
+        ),
+    'orth' => array(
+          'checkInTag' => 'form',
+          'checkInAttr' => array(
+            'type' => array(
+              'femininePlura' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                
+                ),
+              'formula' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                ),
+              'inflectedConjugation' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                ),
+              'inflectedPlural' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                ),
+               'masculinePlural' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                ),
+               'sigla' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>',
+                '/<form type="(.+?)">(.+?)<\/form>/is' => '<span class="$1">$2</span>',
+                ),
+               'symbol' => array(
+                '/<orth>(.+?)<\/orth>/is' => '<b>$1</b>'
+                ),  
+            ),
+          ),
+        ),
+
+    're' => array(
+          'checkInTag' => 're',
+          'checkInAttr' => array(
+            'type' => array(
+              'ant' => array(
+                '/<re type="ant">(.+?)<\/re>/is' => '<b>$1</b>'
+                ),
+              'cf' => array(
+                '/<re type="cf">(.+?)<\/re>/is' => '<b>$1</b>'
+                ),
+              'derived' => array(
+                '/<re type="derived">(.+?)<\/re>/is' => '<b>$1</b>'
+                ),
+              'syn' => array(
+                '/<re type="syn">(.+?)<\/re>/is' => '<b>$1</b>'
+                ),
+               'syn-phrase' => array(
+                '/<re type="syn-phrase">(.+?)<\/re>/is' => '<b>$1</b>'
+                )
+            ),
+          ),
+        ),
+  'list' => array(
+      'checkInTag' => 'list',
+      'checkInAttr' => array(
+        'type' => array(
+          'unordered' => array(
+            '/<list type="unordered" class="unordered">(.+?)<\/list>/is' => '<ol>$1</ol>',
+          ),
+          'ordered' => array(
+            '/<list type="ordered" (.+?)>(.+?)<\/list>/is' => '<ol>$2</ol>',
+          ),
+          'conjugation' => array(
+            '/<list class="conjugation">(.+?)<\/list>/is' => '<div class="conjugation">$1</div>',
+          ),
+          'dict' => array(
+            '/<list type="dict">(.+?)<\/list>/is' => '<ol>$1</ol>',
+          ),
+          
+        ),
+      ),
+    ),
+    'def' => array(
+      'checkInTag' => 'def',
+      'checkInAttr' => array(
+        'type' => array(
+          'full' => array(
+            '/<def type="full">(.+?)<\/def>/is' => '<div class = "def_full">$1</div>',
+          ),
+          'accessory' => array(
+            '/<def type="accessory">(.+?)<\/def>/is' => '<div class = "def_accessory">$1</div>',
+          ),
+        ),
+      ),
+    ),
+    'head' => array(
+      'checkInTag' => 'head',
+      'checkInAttr' => array(
+        'class' => array(
+          'table' => array(
+             '/<head class="table">(.+?)<\/head>/is' => '<caption>$1</caption>',
+          ),
+          'div2' => array(
+            '/<head class="div2">(.+?)<\/head>/is' => '<h3><span class="head">$1</span></h3>'
+          ),
+          'div3' => array(
+            '/<head class="div3">(.+?)<\/head>/is' => '<h4><span class="head">$1</span></h4>'
+          ),
+          'div4' => array(
+            '/<head class="div4">(.+?)<\/head>/is' => '<h5><span class="head">$1</span></h5>'
+          ),
+        ),
+      ),
+    ),
+    'bibl' => array(
+      'checkInTag' => 'bibl',
+      'checkInAttr' => array(
+        'class' => array(
+          'listBibl' => array(
+             '/<bibl class="listBibl">(.+?)<\/bibl>/is' => '<li>$1</li>',
+          )
+        ),
+      ),
+    ),
+    'title' => array(
+      'checkInTag' => 'title',
+      'checkInAttr' => array(
+        'class' => array(
+          'bibl' => array(
+             '/<title class="bibl">(.+?)<\/title>/is' => '<span>$1</span>',
+          )
+        ),
+      ),
+    ),
+    'hi' => array(
+      'checkInTag' => 'hi',
+      'checkInAttr' => array(
+        'rend' => array(
+          'sub' => array(
+            '/<hi rend="sub">(.+?)<\/hi>/is' => '<sub>$1</sub>',
+          ),
+          'sup' => array(
+            '/<hi rend="sup">(.+?)<\/hi>/is' => '<sup>$1</sup>',
+          ),
+          'i' => array(
+            '/<hi rend="i">(.+?)<\/hi>/is' => '<i>$1</i>',
+          ),
+          'b' => array(
+            '/<hi rend="b">(.+?)<\/hi>/is' => '<b>$1</b>',
+          ),
+          'heading' => array(
+            '/<hi rend="heading">(.+?)<\/hi>/is' => '<span class="accessory_heading">$1</span>',
+          ),
+          
+        ),
+      ),
+    ),
+    'figure' => array(
+      'checkInTag' => 'figure',
+      'checkInAttr' => array(
+        'type' => array(
+          'media' => array(
+           '/<figure type="media" (.+?)>(.+?)<\/figure>/is' => '<div class = "figure media" type="media" $1>$2</div>',
+           '/<figure (.+?) type="media" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure media" $2 type="media">$3</div>',
+          ),
+
+          'foto' => array(
+           '/<figure availability="SI" type="foto" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="foto"/><div class="figure foto imgdiv">$2</div></li>',
+           '/<figure availability="NO" type="foto" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="foto"/><div class="figure carousel foto imgdiv">$2</div></li>',
+            '/<figure availability="SI" (.+?) type="foto" (.+?)>(.+?)<\/figure>/is' => '<div  $1 $2 class = "figure foto" type="foto"/>$3</div>',
+            '/<figure type="foto" (.+?)>(.+?)<\/figure>/is' => '<div class="figure foto imgdiv">$2</div>',
+          ),
+          'mapa' => array(
+           '/<figure availability="SI" type="mapa" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="mapa"/><div class="figure mapa imgdiv">$2</div></li>',
+           '/<figure availability="NO" type="mapa" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="foto"/><div class="figure carousel mapa imgdiv">$2</div></li>',
+            '/<figure availability="SI" (.+?) type="mapa" (.+?)>(.+?)<\/figure>/is' => '<div  $1 $2 class = "figure mapa" type="foto"/>$3</div>',
+            '/<figure type="mapa" (.+?)>(.+?)<\/figure>/is' => '<div class="figure mapa imgdiv">$2</div>',
+          ),
+          'mapa carousel' => array(
+            '/<figure type="mapa carousel" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="foto"/><div class="figure mapa imgdiv">$2</div></li>',
+         ),
+
+          'dibuix' => array(
+            '/<figure availability="SI" type="dibuix" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="dibuix"/><div class="figure foto imgdiv">$2</div></li>',  
+            '/<figure availability="NO" type="dibuix" (.+?)>(.+?)<\/figure>/is' => '<li $1 type="dibuix"/><div class="figure  foto imgdiv">$2</div></li>',
+            '/<figure type="dibuix" (.+?)>(.+?)<\/figure>/is' => '<div $1 class="figure dibuix imgdiv">$2</div>',
+          ),
+          
+          'foto carousel' => array(
+            '/<figure type="foto carousel" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="foto"/><div class="figure foto imgdiv">$2</div></li>',       
+          ),
+          'dibuix carousel' => array(
+            '/<figure type="dibuix carousel" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="dibuix"/><div class="figure dibuix imgdiv">$2</div></li>',            
+          ),
+          'table-thumbnail' => array(
+           '/<figure (.+?) type="table-thumbnail">(.+?)<\/figure>/is' => '<div class = "figure table-thumbnail" $1 type="table-thumbnail">$2</div>',
+           '/<figure type="table-thumbnail" (.+?)>(.+?)<\/figure>/is' => '<div class = "figure table-thumbnail" $1 type="table-thumbnail">$2</div>',
+          ),
+          'table-thumbnail carousel' => array(
+           '/<figure type="table-thumbnail carousel" (.+?)>(.+?)<\/figure>/is' => '<li  $1 type="table-thumbnail"/><div class="figure table-thumbnail imgdiv">$2</div></li>',       
+          ),
+          
+           'table' => array(
+           '/<figure type="table" (.+?)>(.+?)<\/figure>/is' => '<div  $1 type="table">$2</div>',
+          ),
+
+          /*'carousel'=>array(
+            '/<figure type="carousel" (.+?)>(.+?)<\/figure>/is' => '<ul class="mycarousel jcarousel-skin-default node-gallery">$2</ul>',
+           ),*/
+           'formula' => array(
+            //'/<figure (.+?) type="formula" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure formula" $2 type="formula">$3</div>'
+            '/<figure type="formula" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure formula" type="formula">$2</div>'
+          ),
+         'video' => array(
+            '/<figure type="video" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure video" type="video" >$2</div>',
+          ),
+         'video carousel' => array(
+            '/<figure type="video carousel" (.+?)>(.+?)<\/figure>/is' => '<li $1 type="video carousel"/><div $1 class = "figure video" type="video" >$2</div></li>'
+          ),
+          'graficPop' => array(
+            '/<figure type="graficPop" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure graficPop" type="graficPop" >$2</div>'
+          ),
+          'escut' => array(
+            //'/<figure (.+?) type="escut" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure escut" $2 type="escut" >$3</div>'
+            '/<figure type="escut" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure escut" type="escut" >$2</div>'
+          ),
+           'bandera' => array(
+            //'/<figure (.+?) type="bandera" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure bandera" $2 type="bandera" >$3</div>'
+            '/<figure type="bandera" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure bandera" type="bandera" >$2</div>'
+          ),
+           'audio' => array(
+            //'/<figure (.+?) type="audio" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure audio" $2 type="audio" >$3</div>'
+            '/<figure type="audio" (.+?)>(.+?)<\/figure>/is' => '<div $1 class = "figure audio" type="audio" >$2</div>'
+          )
+        ),
+      ),
+    ),
+  );
+
+  $field_xml  =  new DOMDocument();
+  $field_xml->formatOutput  =  TRUE;
+
+  if (!empty($xml)) {
+    $xml = '<div>' . $xml . '</div>';
+  }
+  else
+    return FALSE;
+  $field_xml->loadXML($xml);
+  //search tags in xml
+  $dynamicRegex = array();
+
+  if(!empty($searhTags)) {
+    foreach($searhTags as $keys => $value) {
+      $getAttributeValue = '';
+      $type = '';
+      $tags_items  =  $field_xml->getElementsByTagName($keys);
+      $specialTags = array_keys($specialCasesRegex);
+      foreach ($tags_items as $key  =>  $tags) {
+        if($tags->tagName == 'title') {
+          foreach( $tags->childNodes as $child) {
+            if ($child->nodeType  ==  XML_ELEMENT_NODE){
+                $getAttributeValue = $child->getAttribute('type');
+                 if($getAttributeValue == 'desc')
+                   $tags->removeChild($child);
+            }
+          }
+        }
+
+        if(in_array($keys, $specialTags)) {
+          $spcial_tags_items = $field_xml->getElementsByTagName($specialCasesRegex[$keys]['checkInTag']);
+
+          if(is_array($specialCasesRegex[$keys]['checkInAttr']) && count($spcial_tags_items) > 0) {
+            foreach($specialCasesRegex[$keys]['checkInAttr'] as $keyAttr => $keyAttrValue) {
+              foreach ($spcial_tags_items as $link){
+                $getSelectedAttributes = $link->getAttribute($keyAttr);
+                $type = $getSelectedAttributes;
+              }
+            }
+          }
+        }
+
+        $checkInParentNode='';
+        if(isset($value['checkInParentNode'])) {
+          $checkInParentNode=$value['checkInParentNode'];
+          $parentNode = $tags->parentNode->tagName;
+        }
+
+            if(isset($value['searchAttr'])) {
+              $getAttributeValueLastOcc='';
+              $getAttributeValue = $tags->getAttribute($value['searchAttr']);
+              
+              if(!is_array($value['searchAttr']))
+              $getAttributeValueFstOcc = strstr($tags->getAttribute($value['searchAttr']),'#',true);
+
+              if(!empty($getAttributeValueFstOcc))
+              {
+                $getAttributeValue=$getAttributeValueFstOcc;
+                $getAttributeValueLastOcc=strstr($tags->getAttribute($value['searchAttr']),'#');
+              }
+
+              if(isset($value['searchForString']) && isset($value['replaceStringWith']))
+               {
+                $getAttributeValue = str_replace($value['searchForString'],$value['replaceStringWith'],$getAttributeValue);
+                
+                $tags->setAttribute($value['searchAttr'], $getAttributeValue);
+              
+               } 
+
+              if(isset($value['concateStringWith'])){
+                if(empty($getAttributeValue))
+                {
+                  $concateStr='javascript:void(0);';
+                }
+                else
+                {
+                  $ext  =  pathinfo($getAttributeValue, PATHINFO_EXTENSION);
+                  $concateStr = $value['concateStringWith'];
+                }
+                //checking the first occurrence of #----need to make it dynamic
+                
+                if(!empty($ext) && !in_array($ext,$avoidExt)) {
+                  if(is_array($concateStr)) {
+                    foreach($concateStr as $position => $concateValue) {
+
+                      if($position == "after")
+                        $getAttributeValue = $getAttributeValue.$concateValue;
+                      else
+                        $getAttributeValue = $concateValue.$getAttributeValue;
+                    }
+                  }
+                  else {
+
+                    $getAttributeValue = $getAttributeValue.$concateStr;
+                  }
+                }
+                $getAttributeValue = str_replace($value['searchForString'],$value['replaceStringWith'],$getAttributeValue);
+              }
+
+              if(!empty($getAttributeValueLastOcc))
+              $getAttributeValue = $getAttributeValue.$getAttributeValueLastOcc;
+
+              if ($tags->tagName == 'graphic') {
+              foreach ($tags->attributes as $attr) {
+                $type = $tags->parentNode->getAttribute('type');
+                //if ($tags->hasAttribute('n')) {
+                  $tags->setAttribute('n', $type);
+                //}
+              }
+            }
+
+              if(isset($value['changeAttrTo'])) {
+                if(isset($type) && !empty($type)) {
+                if(isset($value['changeAttrTo'][$type]))
+                  $changeAttr = $value['changeAttrTo'][$type];
+                else if(isset($value['changeAttrTo']['all']))
+                  $changeAttr = $value['changeAttrTo']['all'];
+                else 
+                  $changeAttr = $value['changeAttrTo'];
+              }
+              else
+                $changeAttr = $value['changeAttrTo'];
+                    
+                if (is_array($changeAttr)) {
+                  foreach ($changeAttr as $key => $attribute) {
+                    if(is_array($value['searchAttr']) && isset($value['searchAttr'][$key]))
+                      $searchAttr=$value['searchAttr'][$key];
+                    else
+                      $searchAttr=$value['searchAttr'];
+
+                    $tags->setAttribute($attribute, $tags->getAttribute($searchAttr));
+                  }
+                } else {
+                  $tags->setAttribute($value['changeAttrTo'],$getAttributeValue);
+                }
+              }
+            }
+
+            
+
+            if(isset($value['setNewAttr'])) {
+              if(isset($type) && !empty($type)) {
+                if(isset($value['setNewAttr'][$type]))
+                  $newAttr = $value['setNewAttr'][$type];
+                else
+                  $newAttr = $value['setNewAttr'];
+              }
+              else
+                $newAttr = $value['setNewAttr'];
+
+              foreach($newAttr as $attrType => $attrValue) {
+                $chkParentsStatus=false;
+                 //will remove-start
+                if(isset($newAttr['relationWith']) && $newAttr['relationWith']=="checkInParentNode") {
+                  if(in_array($parentNode, $checkInParentNode))
+                    $chkParentsStatus=true;
+                }
+                //will remove-end
+                if($attrType!='relationWith') {
+                  if($attrType == 'type') {
+                    $extension = substr(strrchr($getAttributeValue, '.'), 1);
+                    if($extension !=  'ogv')
+                      $attrValue = str_replace('srcExtension',$extension, $attrValue);
+                    else {
+                      unset($attrType);
+                      unset($attrValue);
+                    }
+                  }
+                  elseif($attrType == 'href' || $attrType == 'poster') {
+                    $extension = $getAttributeValue;
+                    $attrValue = str_replace('searchSrc',$extension, $attrValue);
+                  }
+
+                  if(!is_array($attrValue)) {
+                    if(isset($newAttr['relationWith'])  && $chkParentsStatus == true) {
+                      $tags->setAttribute($attrType,$parentNode);
+                    }
+                    else if(!isset($newAttr['relationWith'])  && $chkParentsStatus == false)
+                      if(!empty($attrType) && !empty($attrValue))
+                      $tags->setAttribute($attrType,$attrValue);
+                  }
+                }
+              }
+            }
+
+
+
+            if(isset($value['removeAttr'])) {
+              foreach ($value['removeAttr'] as $attribute) {
+                $tags->removeAttribute($attribute);
+              }
+            }
+
+
+            if(in_array($keys, $specialTags)) {
+              $spcial_tags_items = $field_xml->getElementsByTagName($specialCasesRegex[$keys]['checkInTag']);
+                if(is_array($specialCasesRegex[$keys]['checkInAttr']) && count($spcial_tags_items) > 0) {
+                  foreach($specialCasesRegex[$keys]['checkInAttr'] as $keyAttr => $keyAttrValue) {
+                    foreach ($spcial_tags_items as $link){
+                      $getSelectedAttributes = $link->getAttribute($keyAttr);
+                      if(isset($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes]) && is_array($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes])) {
+                        foreach($specialCasesRegex[$keys]['checkInAttr'][$keyAttr][$getSelectedAttributes] as $keySelectAttr => $valueSelectAttr){
+                          $dynamicRegex[$keySelectAttr] = $valueSelectAttr;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+
+      }
+    }
+  }
+
+  $xml = $field_xml->saveXML();
+  $xml = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $xml);
+  $xml = str_replace('  ',' ', $xml);
+
+  $replaceTags = $patterns  =  array(
+  '/<div1 >(.+?)<\/div1>/is' => '<div class = "div1">$1</div><div class="clear"></div>',
+  '/<div1 (.+?)>(.+?)<\/div1>/is' => '<div class = "div1">$2</div><div class="clear"></div>',
+  '/<div1>(.+?)<\/div1>/is' => '<div class = "div1">$1</div><div class="clear"></div>',
+  '/<div2 (.+?)>(.+?)<\/div2>/is' => '<div $1 class = "div2">$2</div>',
+  '/<div3 (.+?)>(.+?)<\/div3>/is' => '<div $1 class = "div3">$2</div>',
+  '/<div4 (.+?)>(.+?)<\/div4>/is' => '<div $1 class = "div4">$2</div>',
+   '/<def type="brief">(.+?)<\/def>/is' => '<div class = "brief">$1</div>',
+  '/<p type="caption">(.+?)<\/p>/is' => '<span class = "p caption">$1</span><div class = "clear"></div>',
+  '/<p type="credits">(.+?)<\/p>/is' => '<span class = "p credit">$1</span><div class = "clear"></div>',
+  '/<note (.+?)>(.+?)<\/note>/is' => '<span class = "tooltio" style = "display:none;">$2</span>',
+   /* '/<title (.+?)>(.+?)<\/title>/is' => '<div>[<span class = "alt"><span class = "title" onmouseover = "alternative_names()">$2</span></span>]</div>',*/
+  '/<xr (.+?) type="external">(.+?)<\/xr>/is' => '<div class="external-links">$2</div>',
+  '/<xr type="external" (.+?)>(.+?)<\/xr>/is' => '<div class="external-links">$2</div>',
+   '/<xr (.+?)><ref (.+?)>(.+?)<hi (.+?)>(.+?)<\/hi><\/ref>(.+?)<\/xr>/is' => '<div class="related_articles"><a $2>$3</a></div><i>$5</i>',
+   '/<xr type="ecGRW" (.+?)><ref (.+?)>(.+?)<hi (.+?)>(.+?)<\/hi><\/ref>(.+?)<\/xr>/is' => '<div class="related_articles"><a $2>$3</a></div><i>$5</i>',
+   '/<xr type="seInfo">(.+?)<\/xr>/is' => '<div class="seInfo">$1<br></div>',
+   '/<xr type="seActiv">(.+?)<\/xr>/is' => '<div class="seActiv">$1<br></div>',
+   '/<xr type="seDict">(.+?)<\/xr>/is' => '<div class="seDict">$1<br></div>',
+   
+  '/<ref (.+?)>(.+?)<\/ref>/is' => '<a $1>$2</a>',
+  '/<head >(.+?)<\/head>/is' => '<h3><span class="head">$1</span></h3>',
+   '/<head>(.+?)<\/head>/is' => '<h1>$1</h1>',
+  '/<table >(.+?)<\/table>/is' => '<div><table class = "table">$1</table></div>',
+  '/<table>(.+?)<\/table>/is' => '<div><table class = "table">$1</table></div>',
+  '/<table (.+?)>(.+?)<\/table>/is' => '<div><table class = "table">$2</table></div>',
+  '/<listBibl>(.+?)<\/listBibl>/is' => '<ol>$1</ol>',
+  '/<bibl>(.+?)<\/bibl>/is' => '$1',
+  '/<lb\/>/is' => '<br />',
+  '/<def type="full">(.+?)<\/def>/is' => '<div class = "def_full">$1</div>',
+  '/<def type="accessory">(.+?)<\/def>/is' => '<div class = "def_accessory">$1</div>',
+  '/<subc>(.+?)<\/subc>/is' => '<em>$1</em>',
+  '/<gram>(.+?)<\/gram>/is' => '<span class="grammar">$1</span>',
+  '/<etym>(.+?)<\/etym>/is' => '<span class="etym">$1</span>',
+  '/<pos>(.+?)<\/pos>/is' => '<i>$1</i>',
+  '/<gen>(.+?)<\/gen>/is' => '<i>$1</i>',
+  '/<cit type="example">(.+?)<\/cit>/is' => '<i>$1</i>',
+  '/<mentioned type="phrases">(.+?)<\/mentioned>/is' => '<b>$1</b>',
+  '/<figure type="carousel" (.+?)>(.+?)<\/figure>/is' => '<div class="clear"></div><ul class="mycarousel jcarousel-skin-default node-gallery">$2</ul>',
+
+    );
+
+
+  $replaceTags = array_merge($dynamicRegex,$replaceTags);
+//print_r($replaceTags);
+  //----------TODO:need to remove this code -------///
+  $xml  =  getTextBetweenTags($xml,$replaceTags);
+  $xml = preg_replace_callback('/(<cell|<row|<\/cell|<\/row|<item|<\/item|<list|<\/list|<anchor|<\/anchor)/is','tmpConvert', $xml);
+  $searchAttributeFromXml = array('target = ','mimetype = ');
+  $replaceAttributeFromXml = array('oldtarget = ','oldmimetype = ');
+  $xml  =  str_replace($searchAttributeFromXml, $replaceAttributeFromXml, $xml);
+  $output  =  $xml;
+    $element[$delta]  =  array(
+      '#markup'  =>  $output,
+    );
+  }
+
+ 
+
+  return $element;
+}
+function tmpConvert($match) {
+  $replacements  =  array(
+     '<cell'  =>  '<td',
+     '<row'  =>  '<tr',
+     '</cell'  =>  '</td',
+     '</row'  =>  '</tr',
+     '<item'  => '<li',
+     '</item'  => '</li',
+     '<list'  => '<ol',
+     '</list'  => '</ol',
+     '<anchor'  => '<span',
+     '</anchor'  => '</span',
+     
+  );
+    return $replacements[strtolower($match[1])];
+}
+//----------TODO:need to remove this code -------///
+function getTextBetweenTags($string,$replaceTags) {
+    $txt = '';
+    foreach($replaceTags as $key => $value)
+    {
+      if($txt!= '')
+      $string = $txt;
+
+      $txt  =  preg_replace("{$key}", "{$value}", $string);
+    }
+    return $txt;
+}
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function enciclopedia_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  //This gets the view_mode where our settings are stored
+  $display  =  $instance['display'][$view_mode];
+  //This gets the actual settings
+  $settings  =  $display['settings'];
+  //Initialize the element variable
+  $element  =  array();
+  //Add your select box
+  $element['pic_size']  =  array(
+    '#type'            =>  'select',                           // Use a select box widget
+    '#title'           =>  t('Button Size'),                   // Widget label
+    '#description'     =>  t('Select what size of FB button'), // Helper text
+    '#default_value'   =>  $settings['pic_size'],              // Get the value if it's already been set
+    '#options'         =>  array(
+      'small'   =>  'Small',
+      'medium'  =>  'Medium',
+      'large'   =>  'Large',
+    ),
+  );
+  $element['tooltip']  =  array(
+    '#type'            =>  'textfield',                        // Use a textbox
+    '#title'           =>  t('Tool Tip'),                      // Widget label
+    '#description'     =>  t('This text will appear when a user mouses over.'),  // helper text
+    '#default_value'   =>  $settings['tooltip'],               // Get the value if it's already been set
+  );
+  return $element;
+}
+/**
+* Implements hook_views_pre_render().
+*/
+function enciclopedia_views_pre_render(&$view){
+  if(isset($view->result[0]->_field_data['nid']['entity']->field_google_map_zoom['und'][0]['value']))
+  {
+    $zoom = $view->result[0]->_field_data['nid']['entity']->field_google_map_zoom['und'][0]['value'];
+    $view->style_plugin->options['macro']  =  "[gmap zoom = ".$zoom."| width = 300px |height = 200px]";
+  }
+}
+
+/**
+* Implements hook_apachesolr_query_alter().
+*/
+function enciclopedia_apachesolr_query_alter($query) {
+  //dsm($query);
+  //echo " ==  ==  ==  ==  ==  ==  ==  ==  = fffffffffffff ==  ==  ==  ==  ==  == ";
+}
+
+function enciclopedia_node_view($node, $view_mode, $langcode) {
+  if (arg(0) == 'node') {
+    $nid = arg(1);
+    $node = node_load($nid);
+    $node_title = $node->title;
+    $filtered_words = array(
+      'endònim',
+      'exònim',
+    );
+
+    if ($node->type == 'dictionary') {
+      variable_set('searchTitle','Gran Diccionari De La Llengua Catalana');
+    }
+    else
+      variable_set('searchTitle','Gran Enciclopèdia Catalana');   
+    
+    $title = str_replace($filtered_words, '', $node_title);
+    drupal_set_title($title);
+  }
+   
+    
+}
+
+/** 
+ * Implements hook_apachesolr_index_document_build(). 
+ */ 
+function enciclopedia_apachesolr_index_document_build(ApacheSolrDocument $document, $entity) { 
+ //print_r($entity);die('dd');
+  //$document->addField('ss_my_field', ''); 
+if(isset($entity->body['und'][0]['value']) && !empty($entity->body['und'][0]['value']))
+{
+
+$myfile = fopen("C:\Users\b\Documents\aa.txt", "w") or die("Unable to open file!");
+$txt = $entity->body['und'][0]['value'];
+fwrite($myfile, $txt);
+
+$xml = new SimpleXMLElement($txt);
+ $result = $xml->xpath('/def/ref');
+        foreach ($result as $key => $value) {
+          $output_arr[] = $value;
+        }
+        $output = implode(' / ', $output_arr);
+fwrite($myfile, $xml);
+fwrite($myfile, $output);
+fclose($myfile);
+
+}
+
+//print_r($entity->field_brief['und'][0]['value']);die('ss');
+}   
